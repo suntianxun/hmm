@@ -10,19 +10,27 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/log"
-	"github.com/stephenafamo/hmm/internal/reader"
-	"github.com/stephenafamo/hmm/internal/tui"
+	"github.com/suntianxun/hmm/internal/reader"
+	"github.com/suntianxun/hmm/internal/tui"
 )
+
+// version is set via ldflags at build time.
+var version = "dev"
 
 //go:embed python/README.md
 var pythonReadme string
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatal("Usage: hmm <file.csv|file.parquet> | hmm readme")
+		log.Fatal("Usage: hmm <file.csv|file.parquet> | hmm readme | hmm --version")
 	}
 
 	path := os.Args[1]
+
+	if path == "--version" || path == "-v" {
+		fmt.Println("hmm " + version)
+		return
+	}
 
 	if path == "readme" {
 		out, err := glamour.Render(pythonReadme, "dark")

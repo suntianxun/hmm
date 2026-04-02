@@ -1,0 +1,42 @@
+version: 2
+
+builds:
+  - main: .
+    binary: hmm
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+brews:
+  - repository:
+      owner: suntianxun
+      name: homebrew-tap
+    homepage: https://github.com/suntianxun/hmm
+    description: A terminal UI for viewing CSV and Parquet files
+    license: MIT
+    install: |
+      bin.install "hmm"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"

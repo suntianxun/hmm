@@ -6,8 +6,16 @@ Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Glo
 
 ## Install
 
+### Homebrew
+
 ```bash
-go install github.com/stephenafamo/hmm@latest
+brew install suntianxun/tap/hmm
+```
+
+### Go
+
+```bash
+go install github.com/suntianxun/hmm@latest
 ```
 
 ## Usage

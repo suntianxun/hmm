@@ -1,6 +1,6 @@
 # hmm-viewer
 
-Python helper to view DataFrames in the [hmm](https://github.com/stephenafamo/hmm) TUI viewer.
+Python helper to view DataFrames in the [hmm](https://github.com/suntianxun/hmm) TUI viewer.
 
 ## Installation
 

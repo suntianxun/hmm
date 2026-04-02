@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/stephenafamo/hmm/internal/reader"
+	"github.com/suntianxun/hmm/internal/reader"
 )
 
 type model struct {

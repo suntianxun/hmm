@@ -1,4 +1,4 @@
-module github.com/stephenafamo/hmm
+module github.com/suntianxun/hmm
 
 go 1.26.1
 
