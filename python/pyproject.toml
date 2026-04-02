@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hmm-viewer"
+version = "0.1.0"
+description = "Python helper to view DataFrames in the hmm TUI viewer"
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+pandas = ["pandas", "pyarrow"]
+polars = ["polars"]
