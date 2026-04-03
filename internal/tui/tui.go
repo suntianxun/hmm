@@ -15,41 +15,31 @@ type model struct {
 	data         *reader.TableData
 	filteredRows [][]string
 
-	// Cursor position
 	cursorRow int
 	cursorCol int
 
-	// Viewport scroll
 	scrollRow int
 	scrollCol int
 
-	// Column widths (computed)
 	colWidths []int
 
-	// Terminal dimensions
 	width  int
 	height int
 
-	// Per-column filters: colIndex -> set of selected values
 	filters map[int]map[string]bool
 
-	// Filter overlay state
 	filterActive bool
 	filterModel  filterModel
 
-	// Sort overlay state
 	sortActive bool
 	sortModel  sortModel
 
-	// Active sort state
-	sortColumns []int  // column indices to sort by, in order
-	sortAsc     bool   // true = ascending, false = descending
+	sortColumns []int
+	sortAsc     bool
 
-	// Copy mode
 	copyMode    bool
-	copyMessage string // transient message like "Copied!"
+	copyMessage string
 
-	// Export overlay state
 	exportActive bool
 	exportModel  exportModel
 
@@ -83,7 +73,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// Clear transient copy message on any keypress
 		m.copyMessage = ""
 
 		if m.filterActive {
@@ -107,7 +96,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) updateFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
-		// Apply filter
 		allSelected := true
 		for _, v := range m.filterModel.allVals {
 			if !m.filterModel.selected[v] {
@@ -116,10 +104,8 @@ func (m model) updateFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if allSelected {
-			// All selected = remove filter for this column
 			delete(m.filters, m.filterModel.colIndex)
 		} else {
-			// Copy the selection map so it's not shared with the filter model
 			sel := make(map[string]bool, len(m.filterModel.selected))
 			for k, v := range m.filterModel.selected {
 				sel[k] = v
@@ -127,10 +113,9 @@ func (m model) updateFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.filters[m.filterModel.colIndex] = sel
 		}
 		m.filterActive = false
+		m.applyFilters()
 		if len(m.sortColumns) > 0 {
 			m.applySorting()
-		} else {
-			m.applyFilters()
 		}
 		m.clampCursor()
 		return m, nil
@@ -192,17 +177,15 @@ func (m model) updateTable(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cursorRow = max(0, len(m.filteredRows)-1)
 		m.scrollIntoView()
 	case "f":
-		// Open filter for current column
 		m.filterActive = true
 		existing := m.filters[m.cursorCol]
 		m.filterModel = newFilterModel(
 			m.cursorCol,
 			m.data.Columns[m.cursorCol],
-			m.data.Rows, // always filter from all rows to show all unique values
+			m.data.Rows,
 			existing,
 		)
 	case "F":
-		// Clear filter on current column
 		delete(m.filters, m.cursorCol)
 		m.applyFilters()
 		if len(m.sortColumns) > 0 {
@@ -210,16 +193,13 @@ func (m model) updateTable(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.clampCursor()
 	case "s":
-		// Open sort overlay
 		m.sortActive = true
 		m.sortModel = newSortModel(m.data.Columns)
-		// Pre-select currently active sort columns
 		if len(m.sortColumns) > 0 {
 			m.sortModel.selected = make([]int, len(m.sortColumns))
 			copy(m.sortModel.selected, m.sortColumns)
 		}
 	case "S":
-		// Clear sort
 		m.sortColumns = nil
 		m.applyFilters()
 		m.clampCursor()
@@ -236,7 +216,6 @@ func (m model) updateCopyMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.copyMode = false
 	switch msg.String() {
 	case "y":
-		// Copy current cell value
 		val := ""
 		if m.cursorRow < len(m.filteredRows) && m.cursorCol < len(m.filteredRows[m.cursorRow]) {
 			val = m.filteredRows[m.cursorRow][m.cursorCol]
@@ -247,7 +226,6 @@ func (m model) updateCopyMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.copyMessage = "Copied cell value"
 		}
 	case "d":
-		// Copy distinct values in current column
 		seen := make(map[string]struct{})
 		var distinct []string
 		for _, row := range m.filteredRows {
@@ -259,35 +237,30 @@ func (m model) updateCopyMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		text := strings.Join(distinct, "\n")
-		if err := clipboard.WriteAll(text); err != nil {
+		if err := clipboard.WriteAll(strings.Join(distinct, "\n")); err != nil {
 			m.copyMessage = "Copy failed"
 		} else {
 			m.copyMessage = fmt.Sprintf("Copied %d distinct values", len(distinct))
 		}
 	case "r":
-		// Copy current row with column names
 		if m.cursorRow < len(m.filteredRows) {
 			row := m.filteredRows[m.cursorRow]
-			var parts []string
+			parts := make([]string, len(m.data.Columns))
 			for i, col := range m.data.Columns {
 				val := ""
 				if i < len(row) {
 					val = row[i]
 				}
-				parts = append(parts, fmt.Sprintf("%s: %s", col, val))
+				parts[i] = col + ": " + val
 			}
-			text := strings.Join(parts, "\n")
-			if err := clipboard.WriteAll(text); err != nil {
+			if err := clipboard.WriteAll(strings.Join(parts, "\n")); err != nil {
 				m.copyMessage = "Copy failed"
 			} else {
 				m.copyMessage = "Copied row"
 			}
 		}
 	case "esc":
-		// Just exit copy mode
 	default:
-		// Unknown key, just exit copy mode
 	}
 	return m, nil
 }
@@ -310,31 +283,30 @@ func (m model) updateExport(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) updateSort(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "a":
-		// Apply ascending sort
 		if len(m.sortModel.selected) > 0 {
 			m.sortColumns = make([]int, len(m.sortModel.selected))
 			copy(m.sortColumns, m.sortModel.selected)
 			m.sortAsc = true
+			m.applyFilters()
 			m.applySorting()
 			m.clampCursor()
 		}
 		m.sortActive = false
 		return m, nil
 	case "d":
-		// Apply descending sort
 		if len(m.sortModel.selected) > 0 {
 			m.sortColumns = make([]int, len(m.sortModel.selected))
 			copy(m.sortColumns, m.sortModel.selected)
 			m.sortAsc = false
+			m.applyFilters()
 			m.applySorting()
 			m.clampCursor()
 		}
 		m.sortActive = false
 		return m, nil
 	case "S":
-		// Clear sort
 		m.sortColumns = nil
-		m.applyFilters() // reapply filters without sort
+		m.applyFilters()
 		m.clampCursor()
 		m.sortActive = false
 		return m, nil
@@ -348,11 +320,9 @@ func (m model) updateSort(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) applySorting() {
-	m.applyFilters() // start from filtered rows
 	if len(m.sortColumns) == 0 {
 		return
 	}
-
 	slices.SortStableFunc(m.filteredRows, func(a, b []string) int {
 		for _, ci := range m.sortColumns {
 			va, vb := "", ""
@@ -388,31 +358,29 @@ func (m model) View() string {
 
 func (m model) viewTable() string {
 	var b strings.Builder
+	b.Grow(m.width * m.height * 2) // pre-allocate
+
 	th := m.tableHeight()
 	visibleCols := m.visibleColumns()
 
-	// Header row
+	// Header row (full-width background)
 	m.renderHeaderRow(&b, visibleCols)
-	b.WriteString("\n")
+	b.WriteByte('\n')
 
 	// Separator
 	m.renderSeparator(&b, visibleCols)
-	b.WriteString("\n")
+	b.WriteByte('\n')
 
 	// Data rows
-	endRow := m.scrollRow + th
-	if endRow > len(m.filteredRows) {
-		endRow = len(m.filteredRows)
-	}
+	endRow := min(m.scrollRow+th, len(m.filteredRows))
 	for ri := m.scrollRow; ri < endRow; ri++ {
 		m.renderDataRow(&b, ri, visibleCols)
-		b.WriteString("\n")
+		b.WriteByte('\n')
 	}
 
 	// Pad remaining lines
-	rendered := endRow - m.scrollRow
-	for i := rendered; i < th; i++ {
-		b.WriteString("\n")
+	for i := endRow - m.scrollRow; i < th; i++ {
+		b.WriteByte('\n')
 	}
 
 	// Status bar
@@ -422,23 +390,17 @@ func (m model) viewTable() string {
 }
 
 func (m model) viewWithOverlay(overlayView string) string {
-	// Draw the table dimmed behind the overlay
 	tableView := m.viewTable()
 	lines := strings.Split(tableView, "\n")
-
 	overlayLines := strings.Split(overlayView, "\n")
 
-	// Overlay on top of the table, centered
 	startRow := 2
 	startCol := max(0, (m.width-50)/2)
 
 	for i, ol := range overlayLines {
 		row := startRow + i
 		if row < len(lines) {
-			// Replace part of the line with overlay content
-			line := lines[row]
-			// Pad line to full width
-			lineRunes := []rune(line)
+			lineRunes := []rune(lines[row])
 			for len(lineRunes) < m.width {
 				lineRunes = append(lineRunes, ' ')
 			}
@@ -454,11 +416,9 @@ func (m model) viewWithOverlay(overlayView string) string {
 func (m model) renderHeaderRow(b *strings.Builder, visibleCols []int) {
 	for i, ci := range visibleCols {
 		if i > 0 {
-			b.WriteString(separatorStyle.Render(" │ "))
+			b.WriteString(headerSepStyle.Render(" │ "))
 		}
-		name := m.data.Columns[ci]
-		w := m.colWidths[ci]
-		cell := truncOrPad(name, w)
+		cell := truncOrPad(m.data.Columns[ci], m.colWidths[ci])
 
 		if ci == m.cursorCol {
 			b.WriteString(headerActiveStyle.Render(cell))
@@ -505,16 +465,20 @@ func (m model) statusBar() string {
 	rowInfo := fmt.Sprintf("Row %d/%d", m.cursorRow+1, len(m.filteredRows))
 	colInfo := fmt.Sprintf("Col %d/%d", m.cursorCol+1, len(m.data.Columns))
 
-	filterInfo := ""
+	var extra strings.Builder
+
+	if len(m.filteredRows) != len(m.data.Rows) {
+		fmt.Fprintf(&extra, " (of %d total)", len(m.data.Rows))
+	}
+
 	if len(m.filters) > 0 {
 		names := make([]string, 0, len(m.filters))
 		for ci := range m.filters {
 			names = append(names, m.data.Columns[ci])
 		}
-		filterInfo = fmt.Sprintf(" | Filtered: %s", strings.Join(names, ", "))
+		fmt.Fprintf(&extra, " | Filtered: %s", strings.Join(names, ", "))
 	}
 
-	sortInfo := ""
 	if len(m.sortColumns) > 0 {
 		names := make([]string, 0, len(m.sortColumns))
 		for _, ci := range m.sortColumns {
@@ -524,30 +488,25 @@ func (m model) statusBar() string {
 		if !m.sortAsc {
 			dir = "↓"
 		}
-		sortInfo = fmt.Sprintf(" | Sort %s: %s", dir, strings.Join(names, " → "))
+		fmt.Fprintf(&extra, " | Sort %s: %s", dir, strings.Join(names, " → "))
 	}
 
-	total := ""
-	if len(m.filteredRows) != len(m.data.Rows) {
-		total = fmt.Sprintf(" (of %d total)", len(m.data.Rows))
-	}
-
+	var statusText string
 	if m.copyMode {
-		return statusStyle.Render(fmt.Sprintf(
-			" %s | %s | %s%s%s%s | COPY: y=cell d=distinct r=row esc=cancel",
-			m.filename, rowInfo, colInfo, total, filterInfo, sortInfo))
+		statusText = fmt.Sprintf(" %s | %s | %s%s | COPY: y=cell d=distinct r=row esc=cancel",
+			m.filename, rowInfo, colInfo, extra.String())
+	} else {
+		copyInfo := ""
+		if m.copyMessage != "" {
+			copyInfo = " | " + m.copyMessage
+		}
+		statusText = fmt.Sprintf(" %s | %s | %s%s%s | f: filter | s: sort | y: copy | e: export | q: quit",
+			m.filename, rowInfo, colInfo, extra.String(), copyInfo)
 	}
 
-	copyInfo := ""
-	if m.copyMessage != "" {
-		copyInfo = " | " + m.copyMessage
-	}
+	statusLine := statusStyle.Render(statusText)
 
-	statusLine := statusStyle.Render(fmt.Sprintf(
-		" %s | %s | %s%s%s%s%s | f: filter | s: sort | y: copy | e: export | q: quit",
-		m.filename, rowInfo, colInfo, total, filterInfo, sortInfo, copyInfo))
-
-	// Cell preview line: show full value of cell under cursor, right-aligned
+	// Cell preview line
 	cellVal := ""
 	if m.cursorRow >= 0 && m.cursorRow < len(m.filteredRows) && m.cursorCol < len(m.filteredRows[m.cursorRow]) {
 		cellVal = m.filteredRows[m.cursorRow][m.cursorCol]
@@ -556,7 +515,7 @@ func (m model) statusBar() string {
 	if m.cursorCol >= 0 && m.cursorCol < len(m.data.Columns) {
 		colName = m.data.Columns[m.cursorCol]
 	}
-	preview := fmt.Sprintf("%s: %s", colName, cellVal)
+	preview := colName + ": " + cellVal
 	if len(preview) > m.width {
 		preview = preview[:m.width]
 	}
@@ -569,6 +528,7 @@ func (m model) statusBar() string {
 	return statusLine + "\n" + cellLine
 }
 
+
 func (m *model) computeColWidths() {
 	if len(m.data.Columns) == 0 {
 		return
@@ -579,10 +539,7 @@ func (m *model) computeColWidths() {
 		widths[i] = len(col)
 	}
 
-	sampleSize := len(m.data.Rows)
-	if sampleSize > 200 {
-		sampleSize = 200
-	}
+	sampleSize := min(len(m.data.Rows), 200)
 	for i := 0; i < sampleSize; i++ {
 		for j, cell := range m.data.Rows[i] {
 			if j < len(widths) && len(cell) > widths[j] {
@@ -592,26 +549,21 @@ func (m *model) computeColWidths() {
 	}
 
 	for i := range widths {
-		if widths[i] < 4 {
-			widths[i] = 4
-		}
-		if widths[i] > 50 {
-			widths[i] = 50
-		}
+		widths[i] = max(widths[i], 4)
+		widths[i] = min(widths[i], 50)
 	}
 
 	m.colWidths = widths
 }
 
-// visibleColumns returns column indices that fit in the current viewport.
 func (m model) visibleColumns() []int {
 	if len(m.colWidths) == 0 {
 		return nil
 	}
 
-	var cols []int
+	cols := make([]int, 0, len(m.colWidths))
 	usedWidth := 0
-	sepWidth := 3 // " │ "
+	const sepWidth = 3 // " │ "
 
 	for i := m.scrollCol; i < len(m.colWidths); i++ {
 		needed := m.colWidths[i]
@@ -628,11 +580,7 @@ func (m model) visibleColumns() []int {
 }
 
 func (m model) tableHeight() int {
-	h := m.height - 5 // header + separator + status + cell preview + padding
-	if h < 1 {
-		h = 1
-	}
-	return h
+	return max(1, m.height-5) // header + separator + status + cell preview + padding
 }
 
 func (m *model) scrollIntoView() {
@@ -651,29 +599,19 @@ func (m *model) scrollColIntoView() {
 		return
 	}
 
-	// If cursor column is before visible range, scroll left
 	if m.cursorCol < visible[0] {
 		m.scrollCol = m.cursorCol
 		return
 	}
 
-	// If cursor column is after visible range, scroll right
 	if m.cursorCol > visible[len(visible)-1] {
-		// Find the minimum scrollCol that makes cursorCol visible
+		// Binary-search-style: find the minimum scrollCol that makes cursorCol visible
 		m.scrollCol = m.cursorCol
 		for m.scrollCol > 0 {
-			test := m.scrollCol - 1
-			m.scrollCol = test
+			m.scrollCol--
 			vc := m.visibleColumns()
-			found := false
-			for _, c := range vc {
-				if c == m.cursorCol {
-					found = true
-					break
-				}
-			}
-			if !found {
-				m.scrollCol = test + 1
+			if len(vc) == 0 || vc[len(vc)-1] < m.cursorCol {
+				m.scrollCol++
 				break
 			}
 		}
@@ -696,15 +634,13 @@ func (m *model) applyFilters() {
 		return
 	}
 
-	m.filteredRows = nil
+	m.filteredRows = make([][]string, 0, len(m.data.Rows)/2)
 	for _, row := range m.data.Rows {
 		keep := true
 		for colIdx, selected := range m.filters {
-			if colIdx < len(row) {
-				if !selected[row[colIdx]] {
-					keep = false
-					break
-				}
+			if colIdx < len(row) && !selected[row[colIdx]] {
+				keep = false
+				break
 			}
 		}
 		if keep {
@@ -719,6 +655,9 @@ func truncOrPad(s string, w int) string {
 			return s[:w-1] + "…"
 		}
 		return s[:w]
+	}
+	if len(s) == w {
+		return s
 	}
 	return s + strings.Repeat(" ", w-len(s))
 }

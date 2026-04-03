@@ -2,7 +2,7 @@ package tui
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -16,13 +16,12 @@ type filterModel struct {
 	allVals    []string        // all unique values for this column, sorted
 	visible    []string        // values matching the search query
 	selected   map[string]bool // true = value is included in filter
-	cursor     int             // cursor position within visible list
-	scrollOff  int             // scroll offset for the visible list
-	listHeight int             // how many items fit on screen
+	cursor     int
+	scrollOff  int
+	listHeight int
 }
 
 func newFilterModel(colIndex int, colName string, rows [][]string, existing map[string]bool) filterModel {
-	// Collect unique values
 	seen := make(map[string]struct{})
 	for _, row := range rows {
 		if colIndex < len(row) {
@@ -34,9 +33,8 @@ func newFilterModel(colIndex int, colName string, rows [][]string, existing map[
 	for v := range seen {
 		vals = append(vals, v)
 	}
-	sort.Strings(vals)
+	slices.Sort(vals)
 
-	// Initialize selection: if existing filter, copy it; otherwise all selected
 	sel := make(map[string]bool, len(vals))
 	if existing != nil {
 		for _, v := range vals {
@@ -71,13 +69,12 @@ func (f *filterModel) updateVisible() {
 	if query == "" {
 		f.visible = f.allVals
 	} else {
-		f.visible = nil
+		f.visible = f.visible[:0]
 		for _, v := range f.allVals {
 			if fuzzyMatch(strings.ToLower(v), query) {
 				f.visible = append(f.visible, v)
 			}
 		}
-		// When searching, auto-select only the matching values
 		for _, v := range f.allVals {
 			f.selected[v] = false
 		}
@@ -152,20 +149,18 @@ func (f *filterModel) update(msg tea.Msg) tea.Cmd {
 func (f *filterModel) view(maxWidth int) string {
 	var b strings.Builder
 
-	title := filterTitleStyle.Render("Filter: " + f.colName)
-	b.WriteString(title)
+	b.WriteString(filterTitleStyle.Render("Filter: " + f.colName))
 	b.WriteString("\n\n")
 	b.WriteString(f.input.View())
 	b.WriteString("\n\n")
 
 	if len(f.visible) == 0 {
 		b.WriteString(filterHintStyle.Render("  No matching values"))
-		b.WriteString("\n")
+		b.WriteByte('\n')
 	} else {
-		end := f.scrollOff + f.listHeight
-		if end > len(f.visible) {
-			end = len(f.visible)
-		}
+		end := min(f.scrollOff+f.listHeight, len(f.visible))
+		maxValWidth := max(maxWidth-10, 10)
+
 		for i := f.scrollOff; i < end; i++ {
 			v := f.visible[i]
 			check := "[ ]"
@@ -176,10 +171,6 @@ func (f *filterModel) view(maxWidth int) string {
 			display := v
 			if display == "" {
 				display = "(empty)"
-			}
-			maxValWidth := maxWidth - 10
-			if maxValWidth < 10 {
-				maxValWidth = 10
 			}
 			if len(display) > maxValWidth {
 				display = display[:maxValWidth-1] + "…"
@@ -199,14 +190,14 @@ func (f *filterModel) view(maxWidth int) string {
 					b.WriteString(filterItemStyle.Render(line))
 				}
 			}
-			b.WriteString("\n")
+			b.WriteByte('\n')
 		}
 
 		if len(f.visible) > f.listHeight {
 			b.WriteString(filterHintStyle.Render(fmt.Sprintf(
 				"   ↑↓ scroll | showing %d-%d of %d",
 				f.scrollOff+1, end, len(f.visible))))
-			b.WriteString("\n")
+			b.WriteByte('\n')
 		}
 	}
 
@@ -217,10 +208,10 @@ func (f *filterModel) view(maxWidth int) string {
 		}
 	}
 
-	b.WriteString("\n")
+	b.WriteByte('\n')
 	b.WriteString(filterHintStyle.Render(
 		"Space: toggle | Ctrl+A: all | Ctrl+N: none"))
-	b.WriteString("\n")
+	b.WriteByte('\n')
 	b.WriteString(filterHintStyle.Render(fmt.Sprintf(
 		"Enter: apply | Esc: cancel | %d/%d selected",
 		selCount, len(f.allVals))))

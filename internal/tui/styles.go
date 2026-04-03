@@ -17,6 +17,9 @@ var (
 				Bold(true).
 				Foreground(lipgloss.Color("214"))
 
+	headerSepStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240"))
+
 	cellStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252"))
 
@@ -43,9 +46,6 @@ var (
 	filterTitleStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("99"))
-
-	filterInputStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("252"))
 
 	filterItemStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252"))
