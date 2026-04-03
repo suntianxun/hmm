@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hmm-viewer"
-dynamic = ["version"]
+version = "0.1.3"
 description = "View CSV, Parquet files and pandas/polars DataFrames in a terminal UI"
 requires-python = ">=3.8"
 license = "MIT"
@@ -31,5 +31,3 @@ polars = ["polars"]
 [project.scripts]
 hmm = "hmm_viewer.cli:main"
 
-[tool.setuptools.dynamic]
-version = {attr = "hmm_viewer.viewer.__version__"}
