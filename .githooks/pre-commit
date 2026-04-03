@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+
+echo "==> Running Go tests..."
+go test ./...
+
+echo "==> Running Go vet..."
+go vet ./...
+
+echo "==> Running Python tests..."
+if command -v uv &> /dev/null; then
+    (cd python && uv run --with pytest --with pandas --with pyarrow -- python -m pytest tests/ -q)
+else
+    echo "  uv not found, skipping Python tests"
+fi
+
+echo "==> All checks passed."

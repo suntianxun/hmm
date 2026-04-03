@@ -26,7 +26,13 @@ def hmm(df):
     tmp = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
     try:
         _write_parquet(df, tmp.name)
-        subprocess.run([binary, tmp.name])
+        # Open /dev/tty directly so the TUI gets real terminal access
+        # even when called from ipdb/pdb where stdin is not a TTY.
+        tty = os.open("/dev/tty", os.O_RDWR)
+        try:
+            subprocess.run([binary, tmp.name], stdin=tty, stdout=tty, stderr=tty)
+        finally:
+            os.close(tty)
     finally:
         os.unlink(tmp.name)
 
