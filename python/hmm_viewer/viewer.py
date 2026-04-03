@@ -17,7 +17,7 @@ _CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "hmm")
 def hmm(df):
     """View a pandas or polars DataFrame in the hmm TUI viewer.
 
-    Usage from ipdb/pdb:
+    Usage from ipdb/pdb/ipython:
         from hmm_viewer import hmm
         hmm(df)
     """
@@ -26,22 +26,55 @@ def hmm(df):
     tmp = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
     try:
         _write_parquet(df, tmp.name)
-        # Open /dev/tty directly so the TUI gets real terminal access
-        # even when called from ipdb/pdb where stdin is not a TTY.
-        tty = os.open("/dev/tty", os.O_RDWR)
         try:
-            subprocess.run([binary, tmp.name], stdin=tty, stdout=tty, stderr=tty)
-        finally:
-            os.close(tty)
+            tty = os.open("/dev/tty", os.O_RDWR)
+        except OSError:
+            tty = None
+
+        if tty is not None:
+            try:
+                subprocess.run([binary, tmp.name], stdin=tty, stdout=tty, stderr=tty)
+            finally:
+                os.close(tty)
+        elif platform.system() == "Darwin":
+            _run_in_new_terminal(binary, tmp.name)
+        else:
+            subprocess.run([binary, tmp.name])
     finally:
         os.unlink(tmp.name)
 
 
+def _run_in_new_terminal(binary, filepath):
+    """Open hmm in a new macOS Terminal window and wait for it to finish."""
+    import time
+
+    done_marker = filepath + ".done"
+    cmd = f'{binary} {filepath}; touch {done_marker}'
+    cmd_escaped = cmd.replace("\\", "\\\\").replace('"', '\\"')
+    applescript = f'tell application "Terminal" to do script "{cmd_escaped}"'
+
+    subprocess.Popen(["osascript", "-e", applescript])
+
+    while not os.path.exists(done_marker):
+        time.sleep(0.3)
+    os.unlink(done_marker)
+
+
+def _is_python_script(path):
+    """Return True if the file is a Python script (not the Go binary)."""
+    try:
+        with open(path, "rb") as f:
+            header = f.read(64)
+            return b"python" in header
+    except OSError:
+        return False
+
+
 def _find_or_install_binary():
     """Find the hmm binary, downloading it from GitHub releases if needed."""
-    # 1. Check PATH
+    # 1. Check PATH (skip Python CLI wrappers to avoid infinite recursion)
     found = shutil.which("hmm")
-    if found:
+    if found and not _is_python_script(found):
         return found
 
     # 2. Check common Go bin location
