@@ -64,4 +64,8 @@ var (
 	filterHintStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241")).
 			Italic(true)
+
+	exportErrorStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("196")).
+				Bold(true)
 )

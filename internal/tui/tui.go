@@ -49,6 +49,10 @@ type model struct {
 	copyMode    bool
 	copyMessage string // transient message like "Copied!"
 
+	// Export overlay state
+	exportActive bool
+	exportModel  exportModel
+
 	filename string
 }
 
@@ -87,6 +91,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.sortActive {
 			return m.updateSort(msg)
+		}
+		if m.exportActive {
+			return m.updateExport(msg)
 		}
 		if m.copyMode {
 			return m.updateCopyMode(msg)
@@ -218,6 +225,9 @@ func (m model) updateTable(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.clampCursor()
 	case "y":
 		m.copyMode = true
+	case "e":
+		m.exportActive = true
+		m.exportModel = newExportModel(m.data, m.filteredRows)
 	}
 	return m, nil
 }
@@ -280,6 +290,21 @@ func (m model) updateCopyMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Unknown key, just exit copy mode
 	}
 	return m, nil
+}
+
+func (m model) updateExport(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.exportActive = false
+		return m, nil
+	}
+
+	cmd := m.exportModel.update(msg)
+	if m.exportModel.done {
+		m.exportActive = false
+		m.copyMessage = m.exportModel.success
+	}
+	return m, cmd
 }
 
 func (m model) updateSort(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -354,6 +379,9 @@ func (m model) View() string {
 	}
 	if m.sortActive {
 		return m.viewWithOverlay(m.sortModel.view(min(m.width-4, 50)))
+	}
+	if m.exportActive {
+		return m.viewWithOverlay(m.exportModel.view(min(m.width-4, 60)))
 	}
 	return m.viewTable()
 }
@@ -516,7 +544,7 @@ func (m model) statusBar() string {
 	}
 
 	statusLine := statusStyle.Render(fmt.Sprintf(
-		" %s | %s | %s%s%s%s%s | f: filter | s: sort | y: copy | q: quit",
+		" %s | %s | %s%s%s%s%s | f: filter | s: sort | y: copy | e: export | q: quit",
 		m.filename, rowInfo, colInfo, total, filterInfo, sortInfo, copyInfo))
 
 	// Cell preview line: show full value of cell under cursor, right-aligned

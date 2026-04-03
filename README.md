@@ -40,11 +40,17 @@ hmm data.parquet
 | `F` | Clear filter on current column |
 | `s` | Open sort overlay |
 | `S` | Clear sort |
+| `y` | Copy (then `y`=cell, `d`=distinct values, `r`=row) |
+| `e` | Export filtered data to file |
 | `q` / `Esc` | Quit |
 
 ### Sorting
 
 Press `s` to open the sort overlay. Use fuzzy search to find columns, then select them in priority order with `Space` or `Enter`. Each selected column gets a numbered badge showing its sort priority. Press `a` to sort ascending or `d` to sort descending. Press `S` to clear the sort.
+
+### Exporting
+
+Press `e` to open the export overlay. Type a file path ending in `.csv` or `.parquet` and press `Enter`. The currently filtered/sorted rows will be exported. An error is shown if the file extension is not supported. Press `Esc` to cancel.
 
 ### Subcommands
 
