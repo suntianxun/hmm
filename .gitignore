@@ -35,3 +35,6 @@ go.work.sum
 *CLAUDE.md
 
 *.egg-info
+
+__pycache__/
+.pytest_cache/
