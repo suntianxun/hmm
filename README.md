@@ -12,6 +12,16 @@ Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Glo
 brew install suntianxun/tap/hmm
 ```
 
+### pip / uv
+
+```bash
+uv pip install hmm-viewer              # also installs the hmm CLI
+uv pip install 'hmm-viewer[pandas]'    # with pandas support
+uv pip install 'hmm-viewer[polars]'    # with polars support
+```
+
+The Go binary is automatically downloaded from GitHub releases on first use — no Go toolchain needed.
+
 ### Go
 
 ```bash
@@ -58,21 +68,17 @@ Press `e` to open the export overlay. Type a file path ending in `.csv` or `.par
 hmm readme    # Show the Python helper README
 ```
 
-## Python helper
+## Python API
 
-A Python package is included for viewing pandas/polars DataFrames in `hmm` — useful from a debugger or REPL.
-
-```bash
-uv pip install -e './python[pandas]'
-```
+The `hmm-viewer` package also provides a Python API for viewing pandas/polars DataFrames directly:
 
 ```python
 from hmm_viewer import hmm
 
-hmm(df)
+hmm(df)  # works with pandas and polars DataFrames
 ```
 
-See `hmm readme` or [python/README.md](python/README.md) for details.
+Useful from a debugger (ipdb, pdb) or REPL. See [python/README.md](python/README.md) for details.
 
 ## Supported formats
 

@@ -1,16 +1,29 @@
 # hmm-viewer
 
-Python helper to view DataFrames in the [hmm](https://github.com/suntianxun/hmm) TUI viewer.
+Python package for [hmm](https://github.com/suntianxun/hmm) — a terminal UI for viewing CSV and Parquet files.
+
+The Go binary is automatically downloaded from GitHub releases on first use. No need to install Go.
 
 ## Installation
 
 ```bash
-uv pip install -e ./python                 # base install
-uv pip install -e './python[pandas]'       # with pandas support
-uv pip install -e './python[polars]'       # with polars support
+uv pip install hmm-viewer              # base install
+uv pip install 'hmm-viewer[pandas]'    # with pandas support
+uv pip install 'hmm-viewer[polars]'    # with polars support
 ```
 
 ## Usage
+
+### CLI
+
+After installing, the `hmm` command is available:
+
+```bash
+hmm data.csv
+hmm data.parquet
+```
+
+### Python API
 
 ```python
 from hmm_viewer import hmm
@@ -31,14 +44,6 @@ inspect a DataFrame in the terminal.
 
 ## How it works
 
-`hmm()` writes the DataFrame to a temporary Parquet file, launches the `hmm`
-TUI binary to display it, and cleans up the temp file when done.
-
-## Requirements
-
-The `hmm` Go binary must be on your `$PATH` or installed at `~/go/bin/hmm`.
-Install it from the repo root:
-
-```bash
-go install .
-```
+- **CLI**: The `hmm` command is a thin wrapper that delegates to the Go binary.
+- **Python API**: `hmm(df)` writes the DataFrame to a temporary Parquet file, launches the `hmm` binary, and cleans up the temp file when done.
+- **Auto-download**: If the Go binary isn't found on `$PATH` or `~/go/bin`, it is automatically downloaded from GitHub releases and cached at `~/.cache/hmm/`.
