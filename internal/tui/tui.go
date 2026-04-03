@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/suntianxun/hmm/internal/reader"
 )
@@ -44,6 +45,10 @@ type model struct {
 	sortColumns []int  // column indices to sort by, in order
 	sortAsc     bool   // true = ascending, false = descending
 
+	// Copy mode
+	copyMode    bool
+	copyMessage string // transient message like "Copied!"
+
 	filename string
 }
 
@@ -74,11 +79,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Clear transient copy message on any keypress
+		m.copyMessage = ""
+
 		if m.filterActive {
 			return m.updateFilter(msg)
 		}
 		if m.sortActive {
 			return m.updateSort(msg)
+		}
+		if m.copyMode {
+			return m.updateCopyMode(msg)
 		}
 		return m.updateTable(msg)
 	}
@@ -205,6 +216,68 @@ func (m model) updateTable(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.sortColumns = nil
 		m.applyFilters()
 		m.clampCursor()
+	case "y":
+		m.copyMode = true
+	}
+	return m, nil
+}
+
+func (m model) updateCopyMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.copyMode = false
+	switch msg.String() {
+	case "y":
+		// Copy current cell value
+		val := ""
+		if m.cursorRow < len(m.filteredRows) && m.cursorCol < len(m.filteredRows[m.cursorRow]) {
+			val = m.filteredRows[m.cursorRow][m.cursorCol]
+		}
+		if err := clipboard.WriteAll(val); err != nil {
+			m.copyMessage = "Copy failed"
+		} else {
+			m.copyMessage = "Copied cell value"
+		}
+	case "d":
+		// Copy distinct values in current column
+		seen := make(map[string]struct{})
+		var distinct []string
+		for _, row := range m.filteredRows {
+			if m.cursorCol < len(row) {
+				v := row[m.cursorCol]
+				if _, ok := seen[v]; !ok {
+					seen[v] = struct{}{}
+					distinct = append(distinct, v)
+				}
+			}
+		}
+		text := strings.Join(distinct, "\n")
+		if err := clipboard.WriteAll(text); err != nil {
+			m.copyMessage = "Copy failed"
+		} else {
+			m.copyMessage = fmt.Sprintf("Copied %d distinct values", len(distinct))
+		}
+	case "r":
+		// Copy current row with column names
+		if m.cursorRow < len(m.filteredRows) {
+			row := m.filteredRows[m.cursorRow]
+			var parts []string
+			for i, col := range m.data.Columns {
+				val := ""
+				if i < len(row) {
+					val = row[i]
+				}
+				parts = append(parts, fmt.Sprintf("%s: %s", col, val))
+			}
+			text := strings.Join(parts, "\n")
+			if err := clipboard.WriteAll(text); err != nil {
+				m.copyMessage = "Copy failed"
+			} else {
+				m.copyMessage = "Copied row"
+			}
+		}
+	case "esc":
+		// Just exit copy mode
+	default:
+		// Unknown key, just exit copy mode
 	}
 	return m, nil
 }
@@ -431,9 +504,41 @@ func (m model) statusBar() string {
 		total = fmt.Sprintf(" (of %d total)", len(m.data.Rows))
 	}
 
-	return statusStyle.Render(fmt.Sprintf(
-		" %s | %s | %s%s%s%s | f: filter | s: sort | q: quit",
-		m.filename, rowInfo, colInfo, total, filterInfo, sortInfo))
+	if m.copyMode {
+		return statusStyle.Render(fmt.Sprintf(
+			" %s | %s | %s%s%s%s | COPY: y=cell d=distinct r=row esc=cancel",
+			m.filename, rowInfo, colInfo, total, filterInfo, sortInfo))
+	}
+
+	copyInfo := ""
+	if m.copyMessage != "" {
+		copyInfo = " | " + m.copyMessage
+	}
+
+	statusLine := statusStyle.Render(fmt.Sprintf(
+		" %s | %s | %s%s%s%s%s | f: filter | s: sort | y: copy | q: quit",
+		m.filename, rowInfo, colInfo, total, filterInfo, sortInfo, copyInfo))
+
+	// Cell preview line: show full value of cell under cursor, right-aligned
+	cellVal := ""
+	if m.cursorRow >= 0 && m.cursorRow < len(m.filteredRows) && m.cursorCol < len(m.filteredRows[m.cursorRow]) {
+		cellVal = m.filteredRows[m.cursorRow][m.cursorCol]
+	}
+	colName := ""
+	if m.cursorCol >= 0 && m.cursorCol < len(m.data.Columns) {
+		colName = m.data.Columns[m.cursorCol]
+	}
+	preview := fmt.Sprintf("%s: %s", colName, cellVal)
+	if len(preview) > m.width {
+		preview = preview[:m.width]
+	}
+	padding := ""
+	if pad := m.width - len(preview); pad > 0 {
+		padding = strings.Repeat(" ", pad)
+	}
+	cellLine := statusStyle.Render(padding + preview)
+
+	return statusLine + "\n" + cellLine
 }
 
 func (m *model) computeColWidths() {
@@ -495,7 +600,7 @@ func (m model) visibleColumns() []int {
 }
 
 func (m model) tableHeight() int {
-	h := m.height - 4 // header + separator + status + padding
+	h := m.height - 5 // header + separator + status + cell preview + padding
 	if h < 1 {
 		h = 1
 	}
