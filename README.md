@@ -1,14 +1,8 @@
 # hmm
 
-```
-  _
- | |__  _ __ ___  _ __ ___
- | '_ \| '_ ` _ \| '_ ` _ \
- | | | | | | | | | | | | | |
- |_| |_|_| |_| |_|_| |_| |_|
-
- Let me look at that data...
-```
+<p>
+  <img src="assets/logo.svg" width="540" alt="hmm — Let me look at that data...">
+</p>
 
 A terminal UI for viewing CSV, Parquet, and Excel files.
 
