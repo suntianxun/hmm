@@ -1,6 +1,16 @@
 # hmm
 
-A terminal UI for viewing CSV and Parquet files.
+```
+  _
+ | |__  _ __ ___  _ __ ___
+ | '_ \| '_ ` _ \| '_ ` _ \
+ | | | | | | | | | | | | | |
+ |_| |_|_| |_| |_|_| |_| |_|
+
+ Let me look at that data...
+```
+
+A terminal UI for viewing CSV, Parquet, and Excel files.
 
 Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
 
@@ -37,9 +47,12 @@ go install github.com/suntianxun/hmm@latest
 ```bash
 hmm data.csv
 hmm data.parquet
+hmm data.xlsx
 ```
 
 Each invocation opens the data in a **new [Ghostty](https://ghostty.org) terminal window**. The original terminal is immediately available — useful when calling `hmm` from a debugger or script.
+
+Excel files with multiple sheets are displayed with a **tab bar** — press `Tab` / `Shift+Tab` to switch between sheets.
 
 ### Keybindings
 
@@ -58,6 +71,8 @@ Each invocation opens the data in a **new [Ghostty](https://ghostty.org) termina
 | `S` | Clear sort |
 | `y` | Copy (then `y`=cell, `d`=distinct values, `r`=row) |
 | `e` | Export filtered data to file |
+| `Tab` | Next sheet (Excel) |
+| `Shift+Tab` | Previous sheet (Excel) |
 | `q` / `Esc` | Quit |
 
 ### Sorting
@@ -82,6 +97,9 @@ The `hmm-viewer` package also provides a Python API for viewing pandas/polars Da
 from hmm_viewer import hmm
 
 hmm(df)  # works with pandas and polars DataFrames
+
+# Dict of DataFrames → each key becomes a sheet tab
+hmm(pd.read_excel("file.xlsx", sheet_name=None))
 ```
 
 Useful from a debugger (ipdb, pdb) or REPL — the Ghostty window opens independently, so your debug session continues unblocked. See [python/README.md](python/README.md) for details.
@@ -90,3 +108,4 @@ Useful from a debugger (ipdb, pdb) or REPL — the Ghostty window opens independ
 
 - **CSV** (`.csv`)
 - **Parquet** (`.parquet`, `.pq`)
+- **Excel** (`.xlsx`, `.xls`) — each sheet is displayed as a tab

@@ -68,4 +68,26 @@ var (
 	exportErrorStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("196")).
 				Bold(true)
+
+	// Tab bar styles
+	tabActiveStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")).
+			Padding(0, 1)
+
+	tabInactiveStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("252")).
+				Background(lipgloss.Color("236")).
+				Padding(0, 1)
+
+	tabSepStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240"))
+
+	// Loading spinner style
+	spinnerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("99"))
+
+	loadingTextStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("252"))
 )

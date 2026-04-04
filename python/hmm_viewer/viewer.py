@@ -18,18 +18,50 @@ _CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "hmm")
 def hmm(df):
     """View a pandas or polars DataFrame in the hmm TUI viewer.
 
+    Accepts a single DataFrame (pandas or polars) or a dict of DataFrames
+    (as returned by ``pandas.read_excel(..., sheet_name=None)`` or
+    ``polars.read_excel(..., sheet_name=None)``).  When a dict is passed
+    each key becomes a sheet tab in the TUI.
+
     Usage from ipdb/pdb/ipython:
         from hmm_viewer import hmm
         hmm(df)
+        hmm(pd.read_excel("file.xlsx", sheet_name=None))
     """
     binary = _find_or_install_binary()
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
-    try:
-        _write_parquet(df, tmp.name)
-        subprocess.run([binary, tmp.name])
-    finally:
-        os.unlink(tmp.name)
+    if isinstance(df, dict):
+        # Reserve a temp path, remove it so --wait knows to poll, then
+        # launch hmm immediately so the spinner shows while we write.
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        os.unlink(tmp_path)  # hmm --wait polls for this path to appear
+
+        proc = subprocess.Popen([binary, "--wait", tmp_path])
+        try:
+            # Write to a staging file, then atomic-rename so hmm never
+            # reads a partially-written xlsx.
+            staging = tmp_path + ".tmp.xlsx"
+            _write_excel(df, staging)
+            os.rename(staging, tmp_path)
+            proc.wait()
+        except BaseException:
+            proc.terminate()
+            # Clean up staging/target if they exist
+            for p in (staging, tmp_path):
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+            raise
+    else:
+        tmp = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
+        try:
+            _write_parquet(df, tmp.name)
+            subprocess.run([binary, tmp.name])
+        finally:
+            os.unlink(tmp.name)
 
 
 def _is_python_script(path):
@@ -181,3 +213,28 @@ def _write_parquet(df, path):
             f"Unsupported type: {type(df).__module__}.{type(df).__name__}. "
             "Expected a pandas or polars DataFrame."
         )
+
+
+def _to_pandas(df):
+    """Convert a DataFrame to pandas, or return it if already pandas."""
+    typ = type(df).__module__.split(".")[0]
+    if typ == "pandas":
+        return df
+    if typ == "polars":
+        return df.to_pandas()
+    raise TypeError(
+        f"Unsupported type: {type(df).__module__}.{type(df).__name__}. "
+        "Expected a pandas or polars DataFrame."
+    )
+
+
+def _write_excel(sheets, path):
+    """Write a dict of DataFrames to an Excel file (one sheet per key)."""
+    if not sheets:
+        raise ValueError("Empty dict — nothing to display.")
+
+    import pandas as pd
+
+    with pd.ExcelWriter(path, engine="openpyxl") as writer:
+        for name, df in sheets.items():
+            _to_pandas(df).to_excel(writer, sheet_name=str(name), index=False)
