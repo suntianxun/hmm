@@ -1,6 +1,7 @@
 import os
 import platform
 import shutil
+import ssl
 import subprocess
 import tarfile
 import tempfile
@@ -105,9 +106,20 @@ def _download_binary():
 
     print(f"hmm: downloading binary v{__version__} for {system}/{arch}...")
 
+    ssl_ctx = ssl.create_default_context()
+    try:
+        import certifi
+        ssl_ctx.load_verify_locations(certifi.where())
+    except ImportError:
+        pass
+    # Also load the OS certificate store (picks up corporate/internal CAs).
+    ssl_ctx.load_default_certs()
+
     tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
     try:
-        urllib.request.urlretrieve(url, tmp.name)
+        with urllib.request.urlopen(url, context=ssl_ctx) as resp:
+            with open(tmp.name, "wb") as f:
+                shutil.copyfileobj(resp, f)
 
         if ext == "zip":
             with zipfile.ZipFile(tmp.name) as zf:
@@ -124,7 +136,7 @@ def _download_binary():
                     )
                 member.name = binary_name  # flatten path
                 tf.extract(member, dest_dir)
-    except urllib.error.HTTPError as e:
+    except (urllib.error.HTTPError, urllib.error.URLError) as e:
         raise RuntimeError(
             f"Failed to download hmm binary from {url}: {e}. "
             f"Check that release v{__version__} exists."
