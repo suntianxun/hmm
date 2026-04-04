@@ -26,38 +26,9 @@ def hmm(df):
     tmp = tempfile.NamedTemporaryFile(suffix=".parquet", delete=False)
     try:
         _write_parquet(df, tmp.name)
-        try:
-            tty = os.open("/dev/tty", os.O_RDWR)
-        except OSError:
-            tty = None
-
-        if tty is not None:
-            try:
-                subprocess.run([binary, tmp.name], stdin=tty, stdout=tty, stderr=tty)
-            finally:
-                os.close(tty)
-        elif platform.system() == "Darwin":
-            _run_in_new_terminal(binary, tmp.name)
-        else:
-            subprocess.run([binary, tmp.name])
+        subprocess.run([binary, tmp.name])
     finally:
         os.unlink(tmp.name)
-
-
-def _run_in_new_terminal(binary, filepath):
-    """Open hmm in a new macOS Terminal window and wait for it to finish."""
-    import time
-
-    done_marker = filepath + ".done"
-    cmd = f'{binary} {filepath}; touch {done_marker}'
-    cmd_escaped = cmd.replace("\\", "\\\\").replace('"', '\\"')
-    applescript = f'tell application "Terminal" to do script "{cmd_escaped}"'
-
-    subprocess.Popen(["osascript", "-e", applescript])
-
-    while not os.path.exists(done_marker):
-        time.sleep(0.3)
-    os.unlink(done_marker)
 
 
 def _is_python_script(path):

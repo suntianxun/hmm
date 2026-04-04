@@ -1,5 +1,4 @@
 import os
-import platform
 import tempfile
 from unittest import mock
 
@@ -69,32 +68,21 @@ class TestWriteParquet:
 
 
 class TestHmm:
-    def test_hmm_opens_tty(self):
-        """Verify hmm() opens /dev/tty for subprocess IO."""
+    def test_hmm_calls_binary(self):
+        """Verify hmm() calls the binary with the temp file path."""
         pd = pytest.importorskip("pandas")
         df = pd.DataFrame({"x": [1]})
 
-        fake_tty_fd = 99
-        real_os_open = os.open
-
-        def patched_open(path, flags, *args, **kwargs):
-            if path == "/dev/tty":
-                return fake_tty_fd
-            return real_os_open(path, flags, *args, **kwargs)
-
         with mock.patch("hmm_viewer.viewer._find_or_install_binary", return_value="/usr/bin/true"):
             with mock.patch("hmm_viewer.viewer._write_parquet"):
-                with mock.patch("os.open", side_effect=patched_open) as mock_open:
-                    with mock.patch("os.close") as mock_close:
-                        with mock.patch("subprocess.run") as mock_run:
-                            with mock.patch("os.unlink"):
-                                hmm(df)
+                with mock.patch("subprocess.run") as mock_run:
+                    with mock.patch("os.unlink"):
+                        hmm(df)
 
-        # subprocess should use the tty fd
-        _, run_kwargs = mock_run.call_args
-        assert run_kwargs.get("stdin") == fake_tty_fd
-        assert run_kwargs.get("stdout") == fake_tty_fd
-        mock_close.assert_called_once_with(fake_tty_fd)
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        assert args[0] == "/usr/bin/true"
+        assert args[1].endswith(".parquet")
 
     def test_hmm_cleans_up_temp_file(self):
         """Verify temp file is cleaned up even if subprocess fails."""
@@ -103,11 +91,9 @@ class TestHmm:
 
         with mock.patch("hmm_viewer.viewer._find_or_install_binary", return_value="/usr/bin/false"):
             with mock.patch("hmm_viewer.viewer._write_parquet"):
-                with mock.patch("os.open", return_value=99):
-                    with mock.patch("os.close"):
-                        with mock.patch("subprocess.run", side_effect=OSError("boom")):
-                            with mock.patch("os.unlink") as mock_unlink:
-                                with pytest.raises(OSError):
-                                    hmm(df)
+                with mock.patch("subprocess.run", side_effect=OSError("boom")):
+                    with mock.patch("os.unlink") as mock_unlink:
+                        with pytest.raises(OSError):
+                            hmm(df)
 
         mock_unlink.assert_called_once()

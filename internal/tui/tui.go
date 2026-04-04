@@ -3,7 +3,7 @@ package tui
 import (
 	"cmp"
 	"fmt"
-	"slices"
+"slices"
 	"strings"
 
 	"github.com/atotto/clipboard"

@@ -4,6 +4,10 @@ A terminal UI for viewing CSV and Parquet files.
 
 Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
 
+## Prerequisites
+
+- [Ghostty](https://ghostty.org) terminal emulator
+
 ## Install
 
 ### Homebrew
@@ -34,6 +38,8 @@ go install github.com/suntianxun/hmm@latest
 hmm data.csv
 hmm data.parquet
 ```
+
+Each invocation opens the data in a **new [Ghostty](https://ghostty.org) terminal window**. The original terminal is immediately available — useful when calling `hmm` from a debugger or script.
 
 ### Keybindings
 
@@ -78,7 +84,7 @@ from hmm_viewer import hmm
 hmm(df)  # works with pandas and polars DataFrames
 ```
 
-Useful from a debugger (ipdb, pdb) or REPL. See [python/README.md](python/README.md) for details.
+Useful from a debugger (ipdb, pdb) or REPL — the Ghostty window opens independently, so your debug session continues unblocked. See [python/README.md](python/README.md) for details.
 
 ## Supported formats
 
