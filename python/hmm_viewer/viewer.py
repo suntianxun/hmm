@@ -68,6 +68,26 @@ def _cached_binary_path():
     return os.path.join(_CACHE_DIR, __version__, name)
 
 
+def _load_system_certs(ssl_ctx):
+    """Load certificates from macOS Keychains into the SSL context."""
+    if platform.system() != "Darwin":
+        return
+    keychains = [
+        "/Library/Keychains/System.keychain",
+        "/System/Library/Keychains/SystemRootCertificates.keychain",
+    ]
+    for keychain in keychains:
+        try:
+            result = subprocess.run(
+                ["security", "find-certificate", "-a", "-p", keychain],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode == 0 and result.stdout:
+                ssl_ctx.load_verify_locations(cadata=result.stdout)
+        except Exception:
+            pass
+
+
 def _download_binary():
     system = platform.system().lower()  # linux, darwin, windows
     machine = platform.machine().lower()
@@ -112,8 +132,8 @@ def _download_binary():
         ssl_ctx.load_verify_locations(certifi.where())
     except ImportError:
         pass
-    # Also load the OS certificate store (picks up corporate/internal CAs).
-    ssl_ctx.load_default_certs()
+    # Load system certificates (picks up corporate/internal CAs from macOS Keychain).
+    _load_system_certs(ssl_ctx)
 
     tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
     try:
