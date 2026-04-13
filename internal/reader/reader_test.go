@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/parquet-go/parquet-go"
 )
 
 func TestReadCSV(t *testing.T) {
@@ -173,5 +176,46 @@ func TestValueToString(t *testing.T) {
 	}
 	if got.Rows[0][0] != "hello" {
 		t.Fatalf("expected 'hello', got %q", got.Rows[0][0])
+	}
+}
+
+func TestReadParquetDatetimeColumns(t *testing.T) {
+	// Write a parquet file with date and timestamp columns using parquet-go
+	// to verify they display as human-readable strings, not raw integers.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dates.parquet")
+
+	type record struct {
+		Name     string    `parquet:"name"`
+		Birthday time.Time `parquet:"birthday,timestamp(millisecond)"`
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := parquet.NewGenericWriter[record](f)
+	rows := []record{
+		{Name: "alice", Birthday: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)},
+		{Name: "bob", Birthday: time.Date(2025, 6, 15, 14, 30, 0, 0, time.UTC)},
+	}
+	if _, err := w.Write(rows); err != nil {
+		t.Fatal(err)
+	}
+	w.Close()
+	f.Close()
+
+	got, err := ReadParquet(path)
+	if err != nil {
+		t.Fatalf("ReadParquet: %v", err)
+	}
+
+	// Midnight timestamp should display as date-only
+	if got.Rows[0][1] != "2025-12-01" {
+		t.Errorf("expected '2025-12-01', got %q", got.Rows[0][1])
+	}
+	// Non-midnight timestamp should include time
+	if got.Rows[1][1] != "2025-06-15 14:30:00" {
+		t.Errorf("expected '2025-06-15 14:30:00', got %q", got.Rows[1][1])
 	}
 }
