@@ -69,12 +69,14 @@ func (f *filterModel) updateVisible() {
 	if query == "" {
 		f.visible = f.allVals
 	} else {
-		f.visible = f.visible[:0]
+		visible := make([]string, 0, len(f.allVals))
 		for _, v := range f.allVals {
 			if fuzzyMatch(strings.ToLower(v), query) {
-				f.visible = append(f.visible, v)
+				visible = append(visible, v)
 			}
 		}
+		f.visible = visible
+
 		for _, v := range f.allVals {
 			f.selected[v] = false
 		}
@@ -142,6 +144,12 @@ func (f *filterModel) update(msg tea.Msg) tea.Cmd {
 		f.cursor = 0
 		f.scrollOff = 0
 		f.updateVisible()
+		
+		if f.input.Value() == "" {
+			for _, v := range f.allVals {
+				f.selected[v] = true
+			}
+		}
 	}
 	return cmd
 }
