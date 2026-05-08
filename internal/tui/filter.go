@@ -227,13 +227,7 @@ func (f *filterModel) view(maxWidth int) string {
 	return filterBorderStyle.MaxWidth(maxWidth).Render(b.String())
 }
 
-// fuzzyMatch checks if all characters of pattern appear in s in order.
+// fuzzyMatch checks if pattern is a substring of s.
 func fuzzyMatch(s, pattern string) bool {
-	pi := 0
-	for i := 0; i < len(s) && pi < len(pattern); i++ {
-		if s[i] == pattern[pi] {
-			pi++
-		}
-	}
-	return pi == len(pattern)
+	return strings.Contains(s, pattern)
 }

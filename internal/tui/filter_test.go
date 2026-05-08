@@ -11,14 +11,14 @@ func TestFuzzyMatch(t *testing.T) {
 		s, pattern string
 		want       bool
 	}{
-		{"hello world", "hlo", true},
-		{"hello world", "hw", true},
+		{"hello world", "lo wo", true},
+		{"hello world", "hw", false},
 		{"hello", "hello", true},
 		{"hello", "hx", false},
 		{"", "", true},
 		{"abc", "", true},
 		{"", "a", false},
-		{"abcdef", "ace", true},
+		{"abcdef", "cde", true},
 		{"abcdef", "aec", false},
 	}
 
