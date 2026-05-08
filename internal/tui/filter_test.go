@@ -1,6 +1,10 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 func TestFuzzyMatch(t *testing.T) {
 	tests := []struct {
@@ -60,5 +64,58 @@ func TestNewFilterModelWithExisting(t *testing.T) {
 	}
 	if fm.selected["bob"] != false {
 		t.Error("expected bob to be unselected")
+	}
+}
+
+func TestFilterModel_UpdateVisible_DoesNotCorruptAllVals(t *testing.T) {
+	rows := [][]string{
+		{"alice", "30"},
+		{"bob", "25"},
+		{"charlie", "35"},
+	}
+
+	fm := newFilterModel(0, "name", rows, nil)
+	
+	// Initial state
+	if len(fm.allVals) != 3 {
+		t.Fatalf("expected 3 unique values, got %d", len(fm.allVals))
+	}
+	
+	// Simulate user typing a search query
+	fm.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
+	
+	// Check if allVals was corrupted (should still be exactly alice, bob, charlie)
+	expected := []string{"alice", "bob", "charlie"}
+	if len(fm.allVals) != len(expected) {
+		t.Fatalf("allVals length changed from %d to %d", len(expected), len(fm.allVals))
+	}
+	
+	for i, v := range expected {
+		if fm.allVals[i] != v {
+			t.Errorf("allVals[%d] changed: expected %q, got %q", i, v, fm.allVals[i])
+		}
+	}
+}
+
+func TestFilterModel_UpdateVisible_ClearQueryReselectsAll(t *testing.T) {
+	rows := [][]string{
+		{"alice", "30"},
+		{"bob", "25"},
+	}
+
+	fm := newFilterModel(0, "name", rows, nil)
+	
+	// Type something to filter
+	fm.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
+	
+	if fm.selected["alice"] {
+		t.Error("expected alice to be unselected after typing 'b'")
+	}
+	
+	// Clear the query
+	fm.update(tea.KeyMsg{Type: tea.KeyBackspace})
+	
+	if !fm.selected["alice"] {
+		t.Error("expected alice to be re-selected after clearing query")
 	}
 }
