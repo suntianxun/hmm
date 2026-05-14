@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/log"
 	"github.com/suntianxun/hmm/internal/reader"
+	"github.com/suntianxun/hmm/internal/terminal"
 	"github.com/suntianxun/hmm/internal/tui"
 )
 
@@ -76,10 +75,14 @@ func main() {
 			}
 			shellCmd := fmt.Sprintf("HMM_INNER=1 HMM_CLEANUP=%s exec %s --wait %s",
 				shellQuote(absPath), shellQuote(self), shellQuote(absPath))
-			if err := launchGhostty(shellCmd); err != nil {
-				log.Fatal("Failed to open Ghostty window", "error", err)
+			cmd := terminal.BuildCommand(shellCmd)
+			if cmd != nil {
+				if err := cmd.Start(); err != nil {
+					log.Warn("Failed to open terminal window, falling back to inline", "error", err)
+				} else {
+					return
+				}
 			}
-			return
 		}
 
 		absPath, err := filepath.Abs(path)
@@ -112,11 +115,15 @@ func main() {
 		// The inner process will delete the temp copy when done.
 		shellCmd := fmt.Sprintf("HMM_INNER=1 HMM_CLEANUP=%s exec %s %s",
 			shellQuote(tmpPath), shellQuote(self), shellQuote(tmpPath))
-		if err := launchGhostty(shellCmd); err != nil {
-			os.Remove(tmpPath)
-			log.Fatal("Failed to open Ghostty window", "error", err)
+		cmd := terminal.BuildCommand(shellCmd)
+		if cmd != nil {
+			if err := cmd.Start(); err != nil {
+				log.Warn("Failed to open terminal window, falling back to inline", "error", err)
+			} else {
+				return
+			}
 		}
-		return
+		// Fallback to inline, but we don't return here.
 	}
 
 	// Running inside the Ghostty window — show the TUI.
@@ -182,20 +189,4 @@ func makeWaitLoadFunc(path, ext string) tui.LoadFunc {
 
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
-}
-
-// launchGhostty opens a new Ghostty terminal window running shellCmd.
-// On macOS it tries the +new-window IPC action first to reuse the running
-// Ghostty instance (avoids a second dock icon), falling back to launching
-// a new process.
-func launchGhostty(shellCmd string) error {
-	if runtime.GOOS == "darwin" {
-		cmd := exec.Command("ghostty", "+new-window",
-			"--command=/bin/sh -c "+shellQuote(shellCmd))
-		if err := cmd.Run(); err == nil {
-			return nil
-		}
-	}
-	cmd := exec.Command("ghostty", "-e", "/bin/sh", "-c", shellCmd)
-	return cmd.Start()
 }
