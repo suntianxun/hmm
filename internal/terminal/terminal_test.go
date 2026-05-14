@@ -1,9 +1,9 @@
 package terminal_test
 
 import (
+	"github.com/suntianxun/hmm/internal/terminal"
 	"os"
 	"testing"
-	"github.com/suntianxun/hmm/internal/terminal"
 )
 
 func TestCommandBuilder(t *testing.T) {
@@ -22,11 +22,18 @@ func TestCommandBuilder(t *testing.T) {
 			wantArgs: []string{"myterm", "-x", "echo 'hello'"},
 		},
 		{
-			name:     "Ghostty detection",
+			name:     "Ghostty detection (linux fallback)",
 			env:      map[string]string{"TERM_PROGRAM": "Ghostty"},
 			shellCmd: "echo 'hello'",
 			wantCmd:  "ghostty",
 			wantArgs: []string{"ghostty", "+new-window", "--command=/bin/sh -c 'echo '\"'\"'hello'\"'\"''"},
+		},
+		{
+			name:     "Empty Custom HMM_TERMINAL_CMD",
+			env:      map[string]string{"HMM_TERMINAL_CMD": "   "},
+			shellCmd: "echo 'hello'",
+			wantCmd:  "",
+			wantArgs: nil,
 		},
 		{
 			name:     "Kitty detection",
