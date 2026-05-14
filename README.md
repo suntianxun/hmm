@@ -10,7 +10,15 @@ Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Glo
 
 ## Prerequisites
 
-- [Ghostty](https://ghostty.org) terminal emulator
+- A supported terminal emulator (Ghostty, Kitty, WezTerm, iTerm2, Apple Terminal, tmux). If your terminal isn't supported, it will still work but run inline instead of opening a new window.
+
+### Custom Terminal Configuration
+
+If your terminal isn't auto-detected, you can specify how `hmm` opens a new window by setting `HMM_TERMINAL_CMD`. For example:
+
+```bash
+export HMM_TERMINAL_CMD="my-terminal --new-window -e"
+```
 
 ## Install
 
@@ -44,7 +52,7 @@ hmm data.parquet
 hmm data.xlsx
 ```
 
-Each invocation opens the data in a **new [Ghostty](https://ghostty.org) terminal window**. The original terminal is immediately available — useful when calling `hmm` from a debugger or script.
+Each invocation opens the data in a **new terminal window**. The original terminal is immediately available — useful when calling `hmm` from a debugger or script.
 
 Excel files with multiple sheets are displayed with a **tab bar** — press `Tab` / `Shift+Tab` to switch between sheets.
 
@@ -96,7 +104,7 @@ hmm(df)  # works with pandas and polars DataFrames
 hmm(pd.read_excel("file.xlsx", sheet_name=None))
 ```
 
-Useful from a debugger (ipdb, pdb) or REPL — the Ghostty window opens independently, so your debug session continues unblocked. See [python/README.md](python/README.md) for details.
+Useful from a debugger (ipdb, pdb) or REPL — the new terminal window opens independently, so your debug session continues unblocked. See [python/README.md](python/README.md) for details.
 
 ## Supported formats
 
